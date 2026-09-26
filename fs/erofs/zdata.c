@@ -256,8 +256,10 @@ int __init z_erofs_init_zip_subsystem(void)
 	if (err)
 		goto out_error_pcluster_pool;
 
+	/* upstream fix (2023-03-06, John Galt): drop WQ_UNBOUND - it caused
+	 * an asymmetric arm64 (big.LITTLE) latency regression. */
 	z_erofs_workqueue = alloc_workqueue("erofs_worker",
-			WQ_UNBOUND | WQ_HIGHPRI, num_possible_cpus());
+			WQ_HIGHPRI, num_possible_cpus());
 	if (!z_erofs_workqueue) {
 		err = -ENOMEM;
 		goto out_error_workqueue_init;

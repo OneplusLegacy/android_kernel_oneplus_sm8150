@@ -114,8 +114,18 @@ static int z_erofs_lz4_prepare_destpages(struct z_erofs_decompress_req *rq,
 			victim = availables[--top];
 			get_page(victim);
 		} else {
-			victim = erofs_allocpage(pagepool,
-						 GFP_KERNEL | __GFP_NOFAIL);
+			/*
+			 * upstream fix (2023-09-17, Sultan Alsawaf): direct
+			 * reclaim and I/O can deadlock when this allocation
+			 * runs from bio_endio() context (real crash/hang
+			 * reports on zram + rt kernels) - the allocation must
+			 * still never fail, so loop with GFP_NOWAIT instead of
+			 * GFP_KERNEL | __GFP_NOFAIL, which requires
+			 * __GFP_DIRECT_RECLAIM.
+			 */
+			while (!(victim = erofs_allocpage(pagepool,
+							  GFP_NOWAIT |
+							  __GFP_NOWARN)));
 			set_page_private(victim, Z_EROFS_SHORTLIVED_PAGE);
 		}
 		rq->out[i] = victim;
